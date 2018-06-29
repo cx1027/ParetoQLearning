@@ -5,6 +5,8 @@ __author__ = 'X'
 import numpy as np
 import sys, random
 from enum import Enum
+import os, csv,logging
+from math import *
 
 # useful utilities
 def debug(s):
@@ -18,6 +20,10 @@ def enum(*args):
         g[arg] = i
         i += 1
     return i
+
+class Object:
+   def __init__(self, **attributes):
+      self.__dict__.update(attributes)
 
 # Macros
 # NUM_ACTIONS = Enum('ACTION_NORTH',
@@ -636,55 +642,89 @@ def testing1():
 
 def testinginturn():
     global curPos, prevAction, prevState, actions, FinalCount
-    FinalCount = 0
+    finalStateCount = 0
+    trailCount = 0
+
+
 
     paretoinfirstPOS = Resetinturn((0,0))
     print("pareto in 0,0:",paretoinfirstPOS,"\n number:",len(paretoinfirstPOS))
 
-    i= 0
+    ### trail
+    while trailCount < runSettings["totalTrailCount"]:
+    ### finalStateUpperBound
+        while finalStateCount < runSettings["finalStateUpperBound"]:
+            ### for each finalState
+            i= 0
 
-    for items in paretoinfirstPOS:
-        curPos = (0, 0)
-
-        targetTuple = items
-        print ("find target:",i,":",targetTuple)
-        targetAction = targetTuple[1]
-        # print("action:",targetAction)
-        targetKey = (curPos, targetAction)
-        calcTarget = targetTuple[0]
-        target = getOrignalPareto(calcTarget, Q[targetKey].pareto,  Q[targetKey].R)
-        takeAction(targetAction)
-        #select Q
-        while True:
-            if curPos in RewardPos:
-                FinalCount += 1
-                print("-----------Reach Reward Pos: ",curPos, "\twith action count:", actions, "\tQ:",Q[targetKey].pareto, "\tR", Q[targetKey].R,"\tFinalCount:", FinalCount)
+            for items in paretoinfirstPOS:
+                finalStatePosCount = 0
+                steps = 0
+                logged = False
+                ##reset to state(0,0)
                 curPos = (0, 0)
-                actions = 0
-                #target, targetAction, length = Resetinturn(curPos,i)
-                i+=1
-                break
 
-            else:
-                ap = []
-                for action in NUM_ACTIONS:
-                    key = (curPos,action)
-                    a, paretos = getDirectionPareto(curPos, action)
-                    #print("Action:", key, "\tparetos:", paretos)
-                    ap.append((paretos, Q[key].R, action))
-                apdata = flatDirectionPareto(ap)
-                diff, targetAction, target = getMinP(apdata, target)
-                #print("Found! diff:",diff, "\tTarget Action:", targetAction, "\tnew target value:", target )
-                if actions > 30:
-                    print("loooooooooooooop,oooooops")
-                    actions=0
-                    break
+                startPos = curPos
 
-            print("###From Pos:", curPos, "\t take action:", targetAction, "\ttarget:", target)
-            takeAction(targetAction)#use the found action above where move curPos forward
+                targetTuple = items
+                print ("find target:",i,":",targetTuple)
+                targetAction = targetTuple[1]
+                # print("action:",targetAction)
+                targetKey = (curPos, targetAction)
+                calcTarget = targetTuple[0]
+                target = getOrignalPareto(calcTarget, Q[targetKey].pareto,  Q[targetKey].R)
+                takeAction(targetAction)
+                steps += 1
+                #
+                #select Q
+                while finalStateCount < runSettings["finalStateUpperBound"]:
+                    if curPos in RewardPos:
+                        finalStatePosCount += 1
+                        #if looped all Pareto
+                        if finalStatePosCount == len(paretoinfirstPOS) -1:
+                            finalStateCount += 1
+
+                        if isLogConditionMeet(math.ceil(finalStateCount + finalStatePosCount/len(paretoinfirstPOS)) ):
+                            logged = False
 
 
-def getaction(curPos):
+                    if curPos in RewardPos:
+                        ##add trace logging
+                        ##['TrailNumber', 'Timestamp', 'OpenState', 'FinalState', 'RewardPostions','FinalStateReward', 'steps', 'path'])
+                        if isLogConditionMeet(finalStateCount) and not logged:
+                            log([trailCount, finalStateCount, startPos, curPos, Q[targetKey].pareto, getFinalStateReward(curPos),steps, ''])
+
+                        print("-----------Reach Reward Pos: ",curPos, "\twith action count:", actions, "\tQ:",Q[targetKey].pareto, "\tR", Q[targetKey].R,"\tFinalCount:", FinalCount)
+
+                        curPos = (0, 0)
+                        actions = 0
+                        steps = 0
+                        #target, targetAction, length = Resetinturn(curPos,i)
+                        i+=1
+
+                    else:
+                        ap = []
+                        for action in NUM_ACTIONS:
+                            key = (curPos,action)
+                            a, paretos = getDirectionPareto(curPos, action)
+                            #print("Action:", key, "\tparetos:", paretos)
+                            ap.append((paretos, Q[key].R, action))
+                        apdata = flatDirectionPareto(ap)
+                        diff, targetAction, target = getMinP(apdata, target)
+                        #print("Found! diff:",diff, "\tTarget Action:", targetAction, "\tnew target value:", target )
+                        if actions > 30:
+                            print("loooooooooooooop,oooooops")
+                            actions=0
+                            break
+                        if not isLogConditionMeet(finalStateCount) :
+                            logged = True
+
+                    print("###From Pos:", curPos, "\t take action:", targetAction, "\ttarget:", target)
+                    takeAction(targetAction)#use the found action above where move curPos forward
+                    steps += 1
+
+
+def getAction(curPos):
     # calculate Q
     currentV=[]
     for action in NUM_ACTIONS:
@@ -711,14 +751,19 @@ def getaction(curPos):
     # print("target:", target)
     return targetAction
 
-def notrace():
+def getFinalStateReward(finalState):
+    if finalState not in RewardPos:
+        raise Exception('##This is not a valid final state!')
+    return RewardGrid[finalState[0]][finalState[1]]
+
+def noTrace():
     global curPos, prevAction, prevState, actions
     FinalCount = 0
     curPos = (0, 0)
 
     #loop
     while FinalCount < 100:
-        Action=getaction(curPos)
+        Action=getAction(curPos)
         takeAction(Action)
         #actions += 1
         if curPos in RewardPos:
@@ -726,16 +771,58 @@ def notrace():
             print("-----------Reach Reward Pos: ",curPos, "\twith action count:", actions, "\tFinalCount:", FinalCount)
             curPos = (0, 0)
             actions = 0
-            Action=getaction(curPos)
+            Action=getAction(curPos)
 
         print("###From Pos:", curPos, "\t take action:", Action, "\t actions Count:", actions)
 
 
+def isLogConditionMeet(finalStateCount):
+    return (finalStateCount % runSettings['resultInterval'] == 0)           \
+           or (runSettings['logLowerFinalState'] and ((finalStateCount < 20 and finalStateCount % 2 == 0)          \
+           or (finalStateCount < 100 and finalStateCount % 10 == 0)))
+
+def initializeLogger():
+
+    logFolder = runSettings['logFolder']
+    if not os.path.isdir(logFolder):
+        os.makedirs(logFolder)
+    cfile = open(logFolder + 'data.csv', 'w')
+    alogger = csv.writer(cfile, delimiter='|', quotechar='"', quoting=csv.QUOTE_MINIMAL)
+    alogger.writerow(['TrailNumber', 'Timestamp', 'OpenState', 'FinalState', 'RewardPostions','FinalStateReward', 'steps', 'hyperVolumn','path'])
+    return cfile, alogger
+
+def log(msg):
+    if(isinstance(msg,list) ):
+        msg = "|".join(map(str,['TrailNumber', 'Timestamp', 'OpenState', 'FinalState', 'RewardPostions','FinalStateReward', 'steps', 'hyperVolumn','path']))
+    logging.debug(msg)
+def initialize():
+
+    global runSettings, logger, logFile
+    runSettings = { "totalTrailCount": 1,
+                    "finalStateUpperBound": 2,
+                    "resultInterval" : 50,
+                    "logLowerFinalState" : True,
+                    "logFolder" : "./data/log/"
+                  }
+    #logFile, logger = initializeLogger()
+    #log.close()
+    #FORMAT = '%(asctime)-15s %(clientip)s %(user)-8s %(message)s'
+    # FORMAT = '%(asctime)-15s %(clientip)s %(user)-8s %(message)s'
+    FORMAT = '%(message)s'
+    logging.basicConfig(format=FORMAT, filename=runSettings['logFolder']+'data.csv', level=logging.DEBUG)
+    log(['TrailNumber', 'Timestamp', 'OpenState', 'FinalState', 'RewardPostions','FinalStateReward', 'steps', 'hyperVolumn','path'])
+
+def cleanUp():
+    logFile.close()
+
 def run():
+    ##initialize settings
+    initialize()
+
     training1()
     #testing1()
     testinginturn()
     #notrace()
-
+    #cleanUp()
 
 run()
