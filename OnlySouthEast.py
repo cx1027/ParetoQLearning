@@ -7,6 +7,7 @@ import sys, random
 from enum import Enum
 import os, csv,logging
 from math import *
+import datetime
 
 # useful utilities
 def debug(s):
@@ -647,18 +648,18 @@ def testinginturn():
 
 
 
-    paretoinfirstPOS = Resetinturn((0,0))
-    print("pareto in 0,0:",paretoinfirstPOS,"\n number:",len(paretoinfirstPOS))
+    paretoOfFirstPos = Resetinturn((0,0))
+    print("pareto in 0,0:",paretoOfFirstPos,"\n number:",len(paretoOfFirstPos))
 
     ### trail
-    while trailCount < runSettings["totalTrailCount"]:
+    while trailCount < runSettings['totalTrailCount']:
     ### finalStateUpperBound
-        while finalStateCount < runSettings["finalStateUpperBound"]:
+        while finalStateCount < runSettings['finalStateUpperBound']:
             ### for each finalState
             i= 0
+            finalStatePosCount = 0
 
-            for items in paretoinfirstPOS:
-                finalStatePosCount = 0
+            for items in paretoOfFirstPos:
                 steps = 0
                 logged = False
                 ##reset to state(0,0)
@@ -673,35 +674,36 @@ def testinginturn():
                 targetKey = (curPos, targetAction)
                 calcTarget = targetTuple[0]
                 target = getOrignalPareto(calcTarget, Q[targetKey].pareto,  Q[targetKey].R)
-                takeAction(targetAction)
-                steps += 1
+
                 #
                 #select Q
-                while finalStateCount < runSettings["finalStateUpperBound"]:
+                while curPos not in RewardPos:
+                    # use the found action above where move curPos forward or in non-finalState to take action
+                    takeAction(targetAction)
+                    steps += 1
                     if curPos in RewardPos:
                         finalStatePosCount += 1
                         #if looped all Pareto
-                        if finalStatePosCount == len(paretoinfirstPOS) -1:
+                        if finalStatePosCount == len(paretoOfFirstPos):
                             finalStateCount += 1
 
-                        if isLogConditionMeet(math.ceil(finalStateCount + finalStatePosCount/len(paretoinfirstPOS)) ):
+                        if isLogConditionMeet(ceil(finalStateCount + finalStatePosCount/len(paretoOfFirstPos))):
                             logged = False
 
 
-                    if curPos in RewardPos:
                         ##add trace logging
                         ##['TrailNumber', 'Timestamp', 'OpenState', 'FinalState', 'RewardPostions','FinalStateReward', 'steps', 'path'])
-                        if isLogConditionMeet(finalStateCount) and not logged:
+                        if not logged:
                             log([trailCount, finalStateCount, startPos, curPos, Q[targetKey].pareto, getFinalStateReward(curPos),steps, ''])
 
-                        print("-----------Reach Reward Pos: ",curPos, "\twith action count:", actions, "\tQ:",Q[targetKey].pareto, "\tR", Q[targetKey].R,"\tFinalCount:", FinalCount)
+                        print("-----------Reach Reward Pos: ",curPos, "\twith action count:", actions, "\tQ:",Q[targetKey].pareto, "\tR", Q[targetKey].R,"\tfinalStateCount:", finalStateCount)
 
                         curPos = (0, 0)
                         actions = 0
                         steps = 0
                         #target, targetAction, length = Resetinturn(curPos,i)
                         i+=1
-
+                        break ##get next item in paretoinfirstPOS
                     else:
                         ap = []
                         for action in NUM_ACTIONS:
@@ -720,9 +722,11 @@ def testinginturn():
                             logged = True
 
                     print("###From Pos:", curPos, "\t take action:", targetAction, "\ttarget:", target)
-                    takeAction(targetAction)#use the found action above where move curPos forward
-                    steps += 1
+                    # takeAction(targetAction)#use the found action above where move curPos forward
+                    # steps += 1
+        trailCount += 1
 
+    print('################## end of experiment ################')
 
 def getAction(curPos):
     # calculate Q
@@ -786,14 +790,19 @@ def initializeLogger():
     logFolder = runSettings['logFolder']
     if not os.path.isdir(logFolder):
         os.makedirs(logFolder)
-    cfile = open(logFolder + 'data.csv', 'w')
-    alogger = csv.writer(cfile, delimiter='|', quotechar='"', quoting=csv.QUOTE_MINIMAL)
-    alogger.writerow(['TrailNumber', 'Timestamp', 'OpenState', 'FinalState', 'RewardPostions','FinalStateReward', 'steps', 'hyperVolumn','path'])
-    return cfile, alogger
+    print('data.{0}.csv'.format(datetime.datetime.today().strftime('%Y%m%d-%H%M%S')))
+    FORMAT = '%(message)s'
+    logging.basicConfig(format = FORMAT,
+                        #filename = runSettings['logFolder'] + 'data%s.csv'.format(datetime.datetime.today().strftime('%Y%m%d-%H%M%S')),
+                        handlers = [
+                            logging.FileHandler("{0}/{1}".format(runSettings['logFolder'], 'data%s.csv'.format(datetime.datetime.today().strftime('%Y%m%d-%H%M%S')))),
+                            logging.StreamHandler()],
+                        level = logging.DEBUG)
+
 
 def log(msg):
     if(isinstance(msg,list) ):
-        msg = "|".join(map(str,['TrailNumber', 'Timestamp', 'OpenState', 'FinalState', 'RewardPostions','FinalStateReward', 'steps', 'hyperVolumn','path']))
+        msg = "|".join(map(str,msg))
     logging.debug(msg)
 def initialize():
 
@@ -804,12 +813,7 @@ def initialize():
                     "logLowerFinalState" : True,
                     "logFolder" : "./data/log/"
                   }
-    #logFile, logger = initializeLogger()
-    #log.close()
-    #FORMAT = '%(asctime)-15s %(clientip)s %(user)-8s %(message)s'
-    # FORMAT = '%(asctime)-15s %(clientip)s %(user)-8s %(message)s'
-    FORMAT = '%(message)s'
-    logging.basicConfig(format=FORMAT, filename=runSettings['logFolder']+'data.csv', level=logging.DEBUG)
+    initializeLogger()
     log(['TrailNumber', 'Timestamp', 'OpenState', 'FinalState', 'RewardPostions','FinalStateReward', 'steps', 'hyperVolumn','path'])
 
 def cleanUp():
