@@ -633,7 +633,6 @@ def testing1():
 
 def testingInTurn():
     global curPos, prevAction, prevState, actions, FinalCount
-    finalStateCount = 0
     trailCount = 0
 
     paretoOfFirstPos = Resetinturn((0, 0))
@@ -642,7 +641,8 @@ def testingInTurn():
     ### trail
     while trailCount < runSettings['totalTrailCount']:
         ### finalStateUpperBound
-        while finalStateCount < runSettings['finalStateUpperBound']:
+        finalStateCount = 0
+        while finalStateCount <= runSettings['finalStateUpperBound']:
             ### for each finalState
             i = 0
             finalStatePosCount = 0
