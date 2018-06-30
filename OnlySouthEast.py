@@ -661,7 +661,7 @@ def testinginturn():
 
             for items in paretoOfFirstPos:
                 steps = 0
-                logged = False
+                logged = True
                 ##reset to state(0,0)
                 curPos = (0, 0)
 
@@ -683,9 +683,6 @@ def testinginturn():
                     steps += 1
                     if curPos in RewardPos:
                         finalStatePosCount += 1
-                        #if looped all Pareto
-                        if finalStatePosCount == len(paretoOfFirstPos):
-                            finalStateCount += 1
 
                         if isLogConditionMeet(ceil(finalStateCount + finalStatePosCount/len(paretoOfFirstPos))):
                             logged = False
@@ -694,10 +691,13 @@ def testinginturn():
                         ##add trace logging
                         ##['TrailNumber', 'Timestamp', 'OpenState', 'FinalState', 'RewardPostions','FinalStateReward', 'steps', 'path'])
                         if not logged:
-                            log([trailCount, finalStateCount, startPos, curPos, Q[targetKey].pareto, getFinalStateReward(curPos),steps, ''])
+                            posReward = getFinalStateReward(curPos)
+                            log([trailCount, finalStateCount, startPos, curPos, Q[targetKey].pareto, posReward,steps, checkRewardInGrid(Q[targetKey].pareto, posReward)])
 
                         print("-----------Reach Reward Pos: ",curPos, "\twith action count:", actions, "\tQ:",Q[targetKey].pareto, "\tR", Q[targetKey].R,"\tfinalStateCount:", finalStateCount)
 
+                        if finalStatePosCount == len(paretoOfFirstPos):
+                            finalStateCount += 1
                         curPos = (0, 0)
                         actions = 0
                         steps = 0
@@ -718,7 +718,7 @@ def testinginturn():
                             print("loooooooooooooop,oooooops")
                             actions=0
                             break
-                        if not isLogConditionMeet(finalStateCount) :
+                        if not isLogConditionMeet(ceil(finalStateCount + finalStatePosCount/len(paretoOfFirstPos))):
                             logged = True
 
                     print("###From Pos:", curPos, "\t take action:", targetAction, "\ttarget:", target)
@@ -760,6 +760,13 @@ def getFinalStateReward(finalState):
         raise Exception('##This is not a valid final state!')
     return RewardGrid[finalState[0]][finalState[1]]
 
+def checkRewardInGrid(paretos, reward):
+    ret = list(filter(lambda x: x[1] == reward,  paretos))
+    if len(ret) > 0:
+        return 1
+    else:
+        return 0
+
 def noTrace():
     global curPos, prevAction, prevState, actions
     FinalCount = 0
@@ -790,12 +797,13 @@ def initializeLogger():
     logFolder = runSettings['logFolder']
     if not os.path.isdir(logFolder):
         os.makedirs(logFolder)
-    print('data.{0}.csv'.format(datetime.datetime.today().strftime('%Y%m%d-%H%M%S')))
+    fileName = 'data.{0}.csv'.format(datetime.datetime.today().strftime('%Y%m%d-%H%M%S'))
+    #print(fileName)
     FORMAT = '%(message)s'
     logging.basicConfig(format = FORMAT,
                         #filename = runSettings['logFolder'] + 'data%s.csv'.format(datetime.datetime.today().strftime('%Y%m%d-%H%M%S')),
                         handlers = [
-                            logging.FileHandler("{0}/{1}".format(runSettings['logFolder'], 'data%s.csv'.format(datetime.datetime.today().strftime('%Y%m%d-%H%M%S')))),
+                            logging.FileHandler("{0}/{1}".format(runSettings['logFolder'], fileName)),
                             logging.StreamHandler()],
                         level = logging.DEBUG)
 
@@ -804,11 +812,12 @@ def log(msg):
     if(isinstance(msg,list) ):
         msg = "|".join(map(str,msg))
     logging.debug(msg)
+
 def initialize():
 
     global runSettings, logger, logFile
-    runSettings = { "totalTrailCount": 1,
-                    "finalStateUpperBound": 2,
+    runSettings = { "totalTrailCount": 30,
+                    "finalStateUpperBound": 3500,
                     "resultInterval" : 50,
                     "logLowerFinalState" : True,
                     "logFolder" : "./data/log/"
