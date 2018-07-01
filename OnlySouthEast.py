@@ -72,6 +72,7 @@ GRID_y = 9
 Q_INIT = np.array([0, 0])
 R_INIT = np.array([0, 0])
 N_INIT = 0
+FINAL_POSITION_REWARD = 1750
 
 # learning parameters
 GAMMA = 1
@@ -165,7 +166,7 @@ def takeAction(action):
 def getInitialValuesByPosition(curPos):
     x, y = curPos
     if curPos in RewardPos:
-        return (np.array([-1, RewardGrid[x][y]]), None)
+        return (np.array([-1, RewardGrid[x][y]]), N_INIT)
     else:
         return (R_INIT, Q_INIT, N_INIT)
 
@@ -468,6 +469,8 @@ def DisplayFinal():
 def training1():
     global curPos, RewardGrid, actions, GAMMA, N, FinalCount
 
+    trailCount = 0
+
     printGrid(RewardGrid)
 
     ALPHA = 1.0
@@ -479,28 +482,40 @@ def training1():
     # curPos = random.choice(GridState)
     # action = random.choice(list(NUM_ACTIONS)) #reward,state,avgreward
     curPos = (0, 0)
-    while FinalCount < runSettings['trainingCount']:
+    ### trail
+    while trailCount < runSettings['totalTrailCount']:
+        ### finalStateUpperBound
+        finalStateCount = 0
+        while FinalCount <= runSettings['finalStateUpperBound']:
 
-        # if curPos ==(9,9):
-        #     print (actions)
-        # if FinalCount == 0:
-        #     action = NUM_ACTIONS.ACTION_SOUTH
-        # else:
-        # action = selectBestAction(curPos)
-        action = random.choice(list(NUM_ACTIONS))
-        # print('Cur Pos:', curPos, ' FinalCount:', FinalCount, ' Action:',action)
+            # if curPos ==(9,9):
+            #     print (actions)
+            # if FinalCount == 0:
+            #     action = NUM_ACTIONS.ACTION_SOUTH
+            # else:
+            # action = selectBestAction(curPos)
+            action = random.choice(list(NUM_ACTIONS))
+            # print('Cur Pos:', curPos, ' FinalCount:', FinalCount, ' Action:',action)
 
-        reward = takeAction(action)
-        updateQ(reward, curPos)
+            reward = takeAction(action)
+            updateQ(reward, curPos)
 
-        # print('*** finalCount:', FinalCount)
-        if curPos in RewardPos:
-            FinalCount += 1
-            # print("final curPos",curPos)
-            # DisplayGrid()
-            # curPos = random.choice(OpenPos)
-            curPos = (0, 0)
-            # print ('ramdon pos:', curPos)
+            # print('*** finalCount:', FinalCount)
+            if curPos in RewardPos:
+                FinalCount += 1
+                # print("final curPos",curPos)
+                # DisplayGrid()
+                finalStateCount += 1
+                if isLogConditionMeet(finalStateCount):
+                    runTrace(trailCount, finalStateCount)
+
+                # after testing
+                curPos = (0, 0)
+                # curPos = random.choice(OpenPos)
+                # print ('ramdon pos:', curPos)
+
+        trailCount += 1
+
     DisplayGrid()
     DisplayFinal()
 
@@ -780,6 +795,87 @@ def noTrace():
         print("###From Pos:", curPos, "\t take action:", Action, "\t actions Count:", actions)
 
 
+def runTrace(trailCount, finalStateCount):
+    global curPos
+    ### for each finalState
+    i = 0
+    finalStatePosCount = 0
+    paretoOfFirstPos = Resetinturn((0, 0))
+    print("pareto in 0,0:", paretoOfFirstPos, "\n number:", len(paretoOfFirstPos))
+
+    for items in paretoOfFirstPos:
+        steps = 0
+        logged = True
+        ##reset to state(0,0)
+        curPos = (0, 0)
+
+        startPos = curPos
+
+        targetTuple = items
+        print("find target:", i, ":", targetTuple)
+        targetAction = targetTuple[1]
+        # print("action:",targetAction)
+        targetKey = (curPos, targetAction)
+        calcTarget = targetTuple[0]
+        target = getOrignalPareto(calcTarget, Q[targetKey].pareto, Q[targetKey].R)
+
+        #
+        # select Q
+        while curPos not in RewardPos:
+            # use the found action above where move curPos forward or in non-finalState to take action
+            takeAction(targetAction)
+            steps += 1
+            if curPos in RewardPos:
+                finalStatePosCount += 1
+
+                if isLogConditionMeet(ceil(finalStateCount - 1 + finalStatePosCount / len(paretoOfFirstPos))):
+                    logged = False
+
+                ##add trace logging
+                ##['TrailNumber', 'Timestamp', 'OpenState', 'FinalState', 'RewardPostions','FinalStateReward', 'steps', 'path'])
+                if not logged:
+                    posReward = getFinalStateReward(curPos)
+                    log([trailCount, finalStateCount, startPos, curPos, Q[targetKey].pareto, posReward, steps,
+                         checkRewardInGrid(Q[targetKey].pareto, posReward),
+                         checkRewardInGrid(Q[targetKey].pareto, FINAL_POSITION_REWARD)])
+
+                print("-----------Reach Reward Pos: ", curPos, "\twith action count:", actions, "\tQ:",
+                      Q[targetKey].pareto, "\tR", Q[targetKey].R, "\tfinalStateCount:", finalStateCount)
+
+                # if finalStatePosCount == len(paretoOfFirstPos):
+                #     finalStateCount += 1
+                curPos = (0, 0)
+                steps = 0
+                # target, targetAction, length = Resetinturn(curPos,i)
+                i += 1
+                break  ##get next item in paretoinfirstPOS
+            else:
+                ap = []
+                for action in NUM_ACTIONS:
+                    key = (curPos, action)
+                    a, paretos = getDirectionPareto(curPos, action)
+                    # print("Action:", key, "\tparetos:", paretos)
+                    ap.append((paretos, Q[key].R, action))
+                apdata = flatDirectionPareto(ap)
+                diff, targetAction, target = getMinP(apdata, target)
+                # print("Found! diff:",diff, "\tTarget Action:", targetAction, "\tnew target value:", target )
+
+                if not isLogConditionMeet(ceil(finalStateCount - 1 + finalStatePosCount / len(paretoOfFirstPos))):
+                    logged = True
+
+                if steps > 30:
+                    print("loooooooooooooop,oooooops")
+                    steps = 0
+                    posReward = 0  ### failed to reach to final state, set 0 as fake reward
+                    log([trailCount, finalStateCount, startPos, curPos, Q[targetKey].pareto, posReward, steps,
+                         checkRewardInGrid(Q[targetKey].pareto, posReward), 0])
+                    break
+
+            print("###From Pos:", curPos, "\t take action:", targetAction, "\ttarget:", target)
+            # takeAction(targetAction)#use the found action above where move curPos forward
+            # steps += 1
+
+
 def isLogConditionMeet(finalStateCount):
     return (finalStateCount % runSettings['resultInterval'] == 0) \
            or (runSettings['logLowerFinalState'] and ((finalStateCount < 20 and finalStateCount % 2 == 0) \
@@ -808,17 +904,17 @@ def log(msg):
 
 def initialize():
     global runSettings
-    runSettings = {'trainingCount': 5000,
-                   "totalTrailCount": 30,
-                   "finalStateUpperBound": 3500,
-                   "resultInterval": 50,
-                   "logLowerFinalState": True,
-                   "logFolder": "./data/log/"
-                   }
+    runSettings = {  # 'trainingCount': 3500,
+        "totalTrailCount": 30,
+        "finalStateUpperBound": 8000,
+        "resultInterval": 50,
+        "logLowerFinalState": True,
+        "logFolder": "./data/log/"
+    }
     initializeLogger()
-    #file header
+    # file header
     log(['TrailNumber', 'Timestamp', 'OpenState', 'FinalState', 'RewardPostions', 'FinalStateReward', 'steps',
-         'hyperVolumn', 'path'])
+         'Matched', 'MatchedFinal', 'path'])
 
 
 def run():
@@ -827,7 +923,7 @@ def run():
 
     training1()
     # testing1()
-    testingInTurn()
+    # testingInTurn()
     # notrace()
     # cleanUp()
 
