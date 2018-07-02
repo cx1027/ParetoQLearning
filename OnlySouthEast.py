@@ -510,11 +510,12 @@ def training1():
                     runTrace(trailCount, finalStateCount)
 
                 # after testing
-                curPos = (0, 0)
-                # curPos = random.choice(OpenPos)
-                # print ('ramdon pos:', curPos)
+                #curPos = (0, 0)
+                curPos = random.choice(OpenPos)
+                print ('ramdon pos:', curPos)
 
         trailCount += 1
+        FinalCount = 0
 
     DisplayGrid()
     DisplayFinal()
@@ -825,6 +826,7 @@ def runTrace(trailCount, finalStateCount):
             # use the found action above where move curPos forward or in non-finalState to take action
             takeAction(targetAction)
             steps += 1
+            print(trailCount, finalStateCount, startPos, curPos)
             if curPos in RewardPos:
                 finalStatePosCount += 1
 
