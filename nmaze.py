@@ -67,8 +67,8 @@ trash = {}
 
 Config = {}
 
-GRID_x = 10
-GRID_y = 9
+GRID_x = 21
+GRID_y = 14
 Q_INIT = np.array([0, 0])
 R_INIT = np.array([0, 0])
 N_INIT = 0
@@ -90,32 +90,65 @@ prevAction = None
 prevReward = None
 
 # read grid from file
-RewardGrid = [[0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-              [5, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-              [5, 80, 0, 0, 0, 0, 0, 0, 0, 0],
-              [5, 5, 120, 0, 0, 0, 0, 0, 0, 0],
-              [5, 5, 5, 140, 145, 150, 0, 0, 0, 0],
-              [5, 5, 5, 5, 5, 5, 0, 0, 0, 0],
-              [5, 5, 5, 5, 5, 5, 0, 0, 0, 0],
-              [5, 5, 5, 5, 5, 5, 163, 166, 0, 0],
-              [5, 5, 5, 5, 5, 5, 5, 5, 0, 0],
-              [5, 5, 5, 5, 5, 5, 5, 5, 473, 0],
-              [5, 5, 5, 5, 5, 5, 5, 5, 5, 1750]
-              ]
+# RewardGrid = [[0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+#               [5, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+#               [5, 80, 0, 0, 0, 0, 0, 0, 0, 0],
+#               [5, 5, 120, 0, 0, 0, 0, 0, 0, 0],
+#               [5, 5, 5, 140, 145, 150, 0, 0, 0, 0],
+#               [5, 5, 5, 5, 5, 5, 0, 0, 0, 0],
+#               [5, 5, 5, 5, 5, 5, 0, 0, 0, 0],
+#               [5, 5, 5, 5, 5, 5, 163, 166, 0, 0],
+#               [5, 5, 5, 5, 5, 5, 5, 5, 0, 0],
+#               [5, 5, 5, 5, 5, 5, 5, 5, 473, 0],
+#               [5, 5, 5, 5, 5, 5, 5, 5, 5, 1750]
+#               ] 10X11
 
-OpenPos = ((0, 0), (0, 1), (0, 2), (0, 3), (0, 4), (0, 5), (0, 6), (0, 7), (0, 8), (0, 9),
-           (1, 1), (1, 2), (1, 3), (1, 4), (1, 5), (1, 6), (1, 7), (1, 8), (1, 9),
-           (2, 2), (2, 3), (2, 4), (2, 5), (2, 6), (2, 7), (2, 8), (2, 9),
-           (3, 3), (3, 4), (3, 5), (3, 6), (3, 7), (3, 8), (3, 9),
-           (4, 6), (4, 7), (4, 8), (4, 9),
-           (5, 6), (5, 7), (5, 8), (5, 9),
-           (6, 6), (6, 7), (6, 8), (6, 9),
-           (7, 8), (7, 9),
-           (8, 8), (8, 9),
-           (9, 9)
+#15X22
+RewardGrid =[[5,5,5,5,5,5,5,5,5,5,5,5,5,5,5],
+[5,0,0,0,0,30,5,5,5,5,5,5,5,5,5],
+[5,0,5,0,0,0,5,5,5,5,5,5,5,5,5],
+[5,0,5,0,0,0,5,5,5,5,5,5,5,5,5],
+[5,20,5,0,0,0,5,5,5,5,5,5,5,5,5],
+[5,5,5,5,0,0,5,5,5,5,5,5,5,5,5],
+[5,5,5,5,0,0,5,5,5,5,5,5,5,5,5],
+[5,5,5,5,5,0,5,5,5,5,5,5,5,5,5],
+[5,5,5,5,5,0,0,0,0,30,5,5,5,5,5],
+[5,5,5,5,5,0,5,0,0,0,5,5,5,5,5],
+[5,5,5,5,5,0,5,0,0,0,5,5,5,5,5],
+[5,5,5,5,5,20,5,0,0,0,5,5,5,5,5],
+[5,5,5,5,5,5,5,5,0,0,5,5,5,5,5],
+[5,5,5,5,5,5,5,5,0,0,5,5,5,5,5],
+[5,5,5,5,5,5,5,5,5,0,5,5,5,5,5],
+[5,5,5,5,5,5,5,5,5,0,0,0,0,30,5],
+[5,5,5,5,5,5,5,5,5,0,5,0,0,0,5],
+[5,5,5,5,5,5,5,5,5,0,5,0,0,0,5],
+[5,5,5,5,5,5,5,5,5,20,5,0,0,0,5],
+[5,5,5,5,5,5,5,5,5,5,5,5,0,0,5],
+[5,5,5,5,5,5,5,5,5,5,5,5,0,0,5],
+[5,5,5,5,5,5,5,5,5,5,5,5,5,5,5]]
+
+OpenPos = (
+           (1, 1), (1, 2), (1, 3), (1, 4),
+           (2, 1), (2, 3), (2, 4), (2, 5),
+           (3, 1), (3, 3), (3, 5),
+           (4, 3), (4, 5),
+           (5, 5), (6, 5),(7, 5),
+
+           (8, 5), (8, 6), (8, 7), (8, 8),
+           (9, 5), (9, 7), (9, 8), (9, 9),
+           (10, 5), (10, 7), (10, 8),
+           (11, 7), (11, 9),
+           (12, 9), (13, 9),(14, 9),
+
+           (15, 9), (15, 10), (15, 11), (15, 12),
+           (16, 9), (16, 11), (16, 12), (16, 13),
+           (17, 9), (17, 11), (17, 13),
+           (18, 11), (18, 13),
+           (19, 13), (20, 13)
+
            )
 
-RewardPos = [(1, 0), (2, 1), (3, 2), (4, 3), (4, 4), (4, 5), (7, 6), (7, 7), (9, 8), (10, 9)]
+RewardPos = [(4, 1), (1, 5), (11, 5), (8, 9), (18, 9), (15, 13)]
 
 
 # print grid
@@ -476,7 +509,8 @@ def training1():
     ALPHA = 1.0
     GAMMA = 1
 
-    print("ALPHA: ", ALPHA, "\nGAMMA: ", GAMMA, "\nGRID_LENGTH: ", GRID_y, "\nGRID_WIDE: ", GRID_x, )
+    #print("ALPHA: ", ALPHA, "\nGAMMA: ", GAMMA, "\nGRID_LENGTH: ", GRID_y, "\nGRID_WIDE: ", GRID_x, )
+    print("ALPHA: ", ALPHA, "\nGAMMA: ", GAMMA, "\nGRID_LENGTH: ", len(RewardGrid), "\nGRID_WIDE: ", len(RewardGrid[0]), )
 
     # total new start
     # curPos = random.choice(GridState)
@@ -507,18 +541,23 @@ def training1():
                 # DisplayGrid()
                 finalStateCount += 1
                 if isLogConditionMeet(finalStateCount):
-                    runTrace(trailCount, finalStateCount)
+                    #testingInTurn()
+                    positions = OpenPos
+                    #positions = [(0, 0)]
+
+                    for pos in positions:
+                        runTrace(pos, trailCount, finalStateCount)
 
                 # after testing
                 #curPos = (0, 0)
                 curPos = random.choice(OpenPos)
-                print ('ramdon pos:', curPos)
+                # print ('ramdon pos:', curPos)
 
         trailCount += 1
         FinalCount = 0
 
-    DisplayGrid()
-    DisplayFinal()
+    # DisplayGrid()
+    # DisplayFinal()
 
 
 def DisplayGrid():
@@ -534,6 +573,7 @@ def DisplayGrid():
 def getOrignalPareto(caculateQ, tempParetos, R):
     # targetQ = np.array([0,0])
     for q in tempParetos:
+        #TODO:equal doesnt work
         if np.equal(caculateQ, R + GAMMA * q).all():
             targetQ = q
             break
@@ -796,19 +836,21 @@ def noTrace():
         print("###From Pos:", curPos, "\t take action:", Action, "\t actions Count:", actions)
 
 
-def runTrace(trailCount, finalStateCount):
+def runTrace(positoin, trailCount, finalStateCount):
     global curPos
     ### for each finalState
     i = 0
     finalStatePosCount = 0
-    paretoOfFirstPos = Resetinturn((0, 0))
+
+    paretoOfFirstPos = Resetinturn(positoin)
     print("pareto in 0,0:", paretoOfFirstPos, "\n number:", len(paretoOfFirstPos))
 
     for items in paretoOfFirstPos:
         steps = 0
         logged = True
         ##reset to state(0,0)
-        curPos = (0, 0)
+        # curPos = (0, 0)
+        curPos =positoin
 
         startPos = curPos
 
@@ -826,7 +868,7 @@ def runTrace(trailCount, finalStateCount):
             # use the found action above where move curPos forward or in non-finalState to take action
             takeAction(targetAction)
             steps += 1
-            print(trailCount, finalStateCount, startPos, curPos)
+            # print(trailCount, finalStateCount, startPos, curPos)
             if curPos in RewardPos:
                 finalStatePosCount += 1
 
@@ -838,8 +880,7 @@ def runTrace(trailCount, finalStateCount):
                 if not logged:
                     posReward = getFinalStateReward(curPos)
                     log([trailCount, finalStateCount, startPos, curPos, Q[targetKey].pareto, posReward, steps,
-                         checkRewardInGrid(Q[targetKey].pareto, posReward),
-                         checkRewardInGrid(Q[targetKey].pareto, FINAL_POSITION_REWARD)])
+                         checkRewardInGrid(Q[targetKey].pareto, posReward)])
 
                 print("-----------Reach Reward Pos: ", curPos, "\twith action count:", actions, "\tQ:",
                       Q[targetKey].pareto, "\tR", Q[targetKey].R, "\tfinalStateCount:", finalStateCount)
@@ -878,6 +919,7 @@ def runTrace(trailCount, finalStateCount):
             # steps += 1
 
 
+
 def isLogConditionMeet(finalStateCount):
     return (finalStateCount % runSettings['resultInterval'] == 0) \
            or (runSettings['logLowerFinalState'] and ((finalStateCount < 20 and finalStateCount % 2 == 0) \
@@ -908,8 +950,8 @@ def initialize():
     global runSettings
     runSettings = {  # 'trainingCount': 3500,
         "totalTrailCount": 1,
-        "finalStateUpperBound": 1000,
-        "resultInterval": 1000,
+        "finalStateUpperBound": 200,
+        "resultInterval": 50,
         "logLowerFinalState": False,
         "logFolder": "./data/log/"
     }
