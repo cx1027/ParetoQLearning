@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 __author__ = 'X'
 # update Pareto
 # update testing part
@@ -48,6 +49,9 @@ class QAction(object):
         self.R = rInit
         self.N = N_INIT
 
+    def __str__(self):
+        return 'Action:%s \t R:%s \t N:%s \t Pareto:%s' % (self.action, self.R, self.N, self.pareto)
+
 
 # class QClass(object):
 #     """
@@ -73,6 +77,7 @@ Q_INIT = np.array([0, 0])
 R_INIT = np.array([0, 0])
 N_INIT = 0
 FINAL_POSITION_REWARD = 1750
+REF_POINT = np.array([-10, -10])
 
 # learning parameters
 GAMMA = 1
@@ -281,11 +286,14 @@ def populate(data):
 
 def flatDirectionPareto(data):
     flat = []
-    if not (isinstance(data[0], tuple) and isinstance(data[0][0], list) and isinstance(data[0][0][0], np.ndarray)):
-        raise ("!!! Expecting data in format: [([[2,1],[1,2]], action, R),(...)].")
-    for item in data:
-        for ditem in item[0]:
-            flat.append((ditem, item[1], item[2]))
+    try:
+        if not (isinstance(data[0], tuple) and isinstance(data[0][0], list) and isinstance(data[0][0][0], np.ndarray)):
+            raise ("!!! Expecting data in format: [([[2,1],[1,2]], action, R),(...)].")
+        for item in data:
+            for ditem in item[0]:
+                flat.append((ditem, item[1], item[2]))
+    except Exception as ex:
+        print(ex)
     return flat
 
 
@@ -293,10 +301,10 @@ def flatDirectionPareto(data):
 def paretoQ(curPos, currentParento=[]):
     allValues = []
     pareto = []
-    # 传进来有值
+    # has value in currentParento
     if len(currentParento) != 0:
         allValues = currentParento
-    # 传进来没有值
+    # no value in currentParento
     else:
         for curAction in NUM_ACTIONS:
             key = (curPos, curAction)
@@ -307,7 +315,7 @@ def paretoQ(curPos, currentParento=[]):
             # get pareto from each direction in  Q[key] (QClass)
             if len(Q[key].pareto) != 0:
                 allValues.extend((Q[key].pareto, curAction))
-    # pareto排序
+    # pareto sorting
     return paretoArray(populate(allValues))
 
 
@@ -330,9 +338,12 @@ def getDirectionPareto(curPos, action):
     pareto = []
     if curPos not in RewardPos:
         key = (curPos, action)
-        if key in Q:
-            # get pareto from each direction in  Q[key] (QClass)
-            pareto.extend(Q[key].pareto)
+        pareto.extend(Q[key].pareto)
+
+        # if key in Q:
+        #     # get pareto from each direction in  Q[key] (QClass)
+        #     pareto.extend(Q[key].pareto)
+
     else:
         x, y = curPos
         pareto.append(np.array([-1, RewardGrid[x][y]]))
@@ -383,29 +394,28 @@ def tickoff00(currParentoafter):
 
 def updateQ(reward, curPos):
     global prevState, prevAction, prevReward, RewardGrid, actions
-    # curPos是第一个点
+    # curPos is the first point
     if prevState == None and prevAction == None:
         # Q[key].R = Q[key].R + (reward - Q[key].R) / actions
         return 0
 
-    # '终点为普通点和最后三个点'
+    # 'normal point or last 3 points'
     else:
         # R 'later'
-        key = (prevState, prevAction)  # 如果关键字=（a，b）需要先使 key=a，b）
+        key = (prevState, prevAction)  #
         (x, y) = curPos
 
         # Q
-        # 得到当前正方形里的Qvalue
+        # get Qvalue of current block
         if curPos not in RewardPos:
-            # 初始化四个三角
+            # inital 4 square of this block
             for action in NUM_ACTIONS:
                 currKey = (curPos, action)
                 if not currKey in Q:  # why if not currKey?????
                     (ri, qi, ni) = getInitialValuesByPosition(curPos)
                     Q[currKey] = QAction(ri, qi, action)
 
-            # 计算tempQ=R+γtempQ
-
+            #calc tempQ=R+ temp Q
             # for action in NUM_ACTIONS:
             #     currKey = (curPos, action) #TODO:to be changed by daciba
             #     if not key in Q:
@@ -418,12 +428,12 @@ def updateQ(reward, curPos):
             for action in NUM_ACTIONS:
                 currKey = (curPos, action)
                 # print ("before", Q[currKey].pareto)
-                for p in Q[currKey].pareto:  # 数组是值引用，计算时不会更新原值
+                for p in Q[currKey].pareto:  # value reference, won't affect original value after assigned
                     p = Q[currKey].R + GAMMA * p  # todo: change key
                     currParento.append(p)
                 # print ("after", Q[currKey].pareto)
-            # 得到当前正方形里的pareto
-            # 赋给三角形
+            # get pareto of current state
+            # assign to triangle
             if not key in Q:  # why if not currKey?????
                 (ri, qi, ni) = getInitialValuesByPosition(prevState)
                 Q[key] = QAction(ri, qi, prevAction)
@@ -434,7 +444,7 @@ def updateQ(reward, curPos):
             if len(currParentoafter) >= 1:
                 Q[key].pareto = currParentoafter
             # print ('trangle value:', Q[key].pareto)
-            # 转到下一个位置
+            # to next state
             prevState = curPos
 
         if (x, y) in RewardPos:
@@ -442,22 +452,21 @@ def updateQ(reward, curPos):
             #   print("3,2")
             currParento = getPareto(curPos)
 
-            # 得到当前正方形里的pareto
-            # 赋给三角形
+            # get pareto of current state
+            # assign to triangle
             if key not in Q:
                 (ri, qi, ni) = getInitialValuesByPosition(prevState)
-                Q[key] = QAction(ri, qi)
+                Q[key] = QAction(ri, qi, ni)
 
             currParento.extend(Q[key].pareto)
             Q[key].pareto = paretoQ(curPos, currParento)
-            # 转到下一个位置
+            # to next position
 
             prevState = None
             prevAction = None
             prevReward = None
 
-        # 在终点
-        # '终点计算的问题:和普通点一样'
+        # in final state
         # R:calculate R for previous state
         # Q[key].R = prevReward
         if not key in Q:
@@ -483,7 +492,7 @@ def finalParetoprint(curPos):
         temppareto = []
         if currKey in Q:
             print("final Pareto Print: Cur Pos", currKey, "\tPareto:", Q[currKey].pareto)
-            for p in Q[currKey].pareto:  # 数组是值引用，计算时不会更新原值
+            for p in Q[currKey].pareto:  # assign by value not reference
                 p = Q[currKey].R + GAMMA * p  # todo: change key
                 temppareto.append(p)
         currentV.append((temppareto, action))
@@ -540,13 +549,16 @@ def training1():
                 # print("final curPos",curPos)
                 # DisplayGrid()
                 finalStateCount += 1
-                if isLogConditionMeet(finalStateCount):
+                if isLogConditionMeet(finalStateCount, 0):
                     #testingInTurn()
                     positions = OpenPos
                     #positions = [(0, 0)]
 
+                    hyperSum = 0
+                    for pos in OpenPos:
+                        hyperSum += calc_position_hyper_volume(pos)
                     for pos in positions:
-                        runTrace(pos, trailCount, finalStateCount)
+                        runTrace(pos, trailCount, finalStateCount, hyperSum)
 
                 # after testing
                 #curPos = (0, 0)
@@ -589,7 +601,7 @@ def Reset(curPos):
         currKey = (curPos, action)
         temppareto = []
         # print("Cur Pos", currKey, "\tPareto:", Q[currKey].pareto)
-        for p in Q[currKey].pareto:  # 数组是值引用，计算时不会更新原值
+        for p in Q[currKey].pareto:  #assign by value but not reference
             p = Q[currKey].R + GAMMA * p  # todo: change key
             temppareto.append(p)
         currentV.append((temppareto, action))
@@ -611,13 +623,21 @@ def Reset(curPos):
 
 
 def Resetinturn(curPos):
+    '''
+
+    :param curPos:
+    :return:
+    '''
     # calculate Q
     currentV = []
     for action in NUM_ACTIONS:
         currKey = (curPos, action)
         temppareto = []
-        # print("Cur Pos", currKey, "\tPareto:", Q[currKey].pareto)
-        for p in Q[currKey].pareto:  # 数组是值引用，计算时不会更新原值
+        print("Cur Pos", currKey)
+        if currKey not in Q:
+            (ri, qi, ni) = getInitialValuesByPosition(curPos)
+            Q[currKey] = QAction(ri, qi, action)
+        for p in Q[currKey].pareto:  #assign by value but not reference
             p = Q[currKey].R + GAMMA * p  # todo: change key
             temppareto.append(p)
         currentV.append((temppareto, action))
@@ -681,7 +701,7 @@ def testing1():
             diff, targetAction, target = getMinP(apdata, target)
             # print("Found! diff:",diff, "\tTarget Action:", targetAction, "\tnew target value:", target )
 
-        print("###From Pos:", curPos, "\t take action:", targetAction, "\ttarget:", target)
+        #print("###From Pos:", curPos, "\t take action:", targetAction, "\ttarget:", target)
         takeAction(targetAction)  # use the found action above where move curPos forward
 
     # print("Key:", key)
@@ -735,8 +755,10 @@ def testingInTurn():
                         ##['TrailNumber', 'Timestamp', 'OpenState', 'FinalState', 'RewardPostions','FinalStateReward', 'steps', 'path'])
                         if not logged:
                             posReward = getFinalStateReward(curPos)
-                            log([trailCount, finalStateCount, startPos, curPos, Q[targetKey].pareto, posReward, steps,
-                                 checkRewardInGrid(Q[targetKey].pareto, posReward)])
+                            log([trailCount, finalStateCount, startPos, curPos, posReward, steps
+                                    , calc_position_hyper_volume(curPos)
+                                    , checkRewardInGrid(Q[targetKey].pareto, posReward)
+                                    , Q[targetKey].pareto])
 
                         print("-----------Reach Reward Pos: ", curPos, "\twith action count:", actions, "\tQ:",
                               Q[targetKey].pareto, "\tR", Q[targetKey].R, "\tfinalStateCount:", finalStateCount)
@@ -781,7 +803,7 @@ def getAction(curPos):
         currKey = (curPos, action)
         temppareto = []
         # print("Cur Pos", currKey, "\tPareto:", Q[currKey].pareto)
-        for p in Q[currKey].pareto:  # 数组是值引用，计算时不会更新原值
+        for p in Q[currKey].pareto:  #assign by value but not reference
             p = Q[currKey].R + GAMMA * p  # todo: change key
             temppareto.append(p)
         currentV.append((temppareto, action))
@@ -823,26 +845,26 @@ def noTrace():
 
     # loop
     while FinalCount < 100:
-        Action = getAction(curPos)
-        takeAction(Action)
+        action = getAction(curPos)
+        takeAction(action)
         # actions += 1
         if curPos in RewardPos:
             FinalCount += 1
             print("-----------Reach Reward Pos: ", curPos, "\twith action count:", actions, "\tFinalCount:", FinalCount)
             curPos = (0, 0)
             actions = 0
-            Action = getAction(curPos)
+            action = getAction(curPos)
 
-        print("###From Pos:", curPos, "\t take action:", Action, "\t actions Count:", actions)
+        print("###From Pos:", curPos, "\t take action:", action, "\t actions Count:", actions)
 
 
-def runTrace(positoin, trailCount, finalStateCount):
+def runTrace(position, trailCount, finalStateCount, hyperVol):
     global curPos
     ### for each finalState
     i = 0
     finalStatePosCount = 0
 
-    paretoOfFirstPos = Resetinturn(positoin)
+    paretoOfFirstPos = Resetinturn(position)
     print("pareto in 0,0:", paretoOfFirstPos, "\n number:", len(paretoOfFirstPos))
 
     for items in paretoOfFirstPos:
@@ -850,7 +872,7 @@ def runTrace(positoin, trailCount, finalStateCount):
         logged = True
         ##reset to state(0,0)
         # curPos = (0, 0)
-        curPos =positoin
+        curPos = position
 
         startPos = curPos
 
@@ -861,7 +883,6 @@ def runTrace(positoin, trailCount, finalStateCount):
         targetKey = (curPos, targetAction)
         calcTarget = targetTuple[0]
         target = getOrignalPareto(calcTarget, Q[targetKey].pareto, Q[targetKey].R)
-
         #
         # select Q
         while curPos not in RewardPos:
@@ -872,15 +893,17 @@ def runTrace(positoin, trailCount, finalStateCount):
             if curPos in RewardPos:
                 finalStatePosCount += 1
 
-                if isLogConditionMeet(mpmath.ceil(finalStateCount - 1 + finalStatePosCount / len(paretoOfFirstPos))):
+                if isLogConditionMeet(finalStateCount, finalStatePosCount / len(paretoOfFirstPos)):
                     logged = False
 
                 ##add trace logging
                 ##['TrailNumber', 'Timestamp', 'OpenState', 'FinalState', 'RewardPostions','FinalStateReward', 'steps', 'path'])
                 if not logged:
                     posReward = getFinalStateReward(curPos)
-                    log([trailCount, finalStateCount, startPos, curPos, Q[targetKey].pareto, posReward, steps,
-                         checkRewardInGrid(Q[targetKey].pareto, posReward)])
+                    log([trailCount, finalStateCount, startPos, curPos, posReward, steps
+                            , hyperVol
+                            , checkRewardInGrid(Q[targetKey].pareto, posReward)
+                            , Q[targetKey].pareto])
 
                 print("-----------Reach Reward Pos: ", curPos, "\twith action count:", actions, "\tQ:",
                       Q[targetKey].pareto, "\tR", Q[targetKey].R, "\tfinalStateCount:", finalStateCount)
@@ -896,22 +919,24 @@ def runTrace(positoin, trailCount, finalStateCount):
                 ap = []
                 for action in NUM_ACTIONS:
                     key = (curPos, action)
-                    a, paretos = getDirectionPareto(curPos, action)
-                    # print("Action:", key, "\tparetos:", paretos)
+                    if not key in Q:
+                        Q[key] = QAction(R_INIT, Q_INIT, action)
+                    act, paretos = getDirectionPareto(curPos, action)
+                    print("Action:", act, "key:", key, "paretos:", paretos)
                     ap.append((paretos, Q[key].R, action))
                 apdata = flatDirectionPareto(ap)
                 diff, targetAction, target = getMinP(apdata, target)
                 # print("Found! diff:",diff, "\tTarget Action:", targetAction, "\tnew target value:", target )
 
-                if not isLogConditionMeet(mpmath.ceil(finalStateCount - 1 + finalStatePosCount / len(paretoOfFirstPos))):
+                if not isLogConditionMeet(finalStateCount, finalStatePosCount / len(paretoOfFirstPos)):
                     logged = True
 
                 if steps > 30:
                     print("loooooooooooooop,oooooops")
                     steps = 0
                     posReward = 0  ### failed to reach to final state, set 0 as fake reward
-                    log([trailCount, finalStateCount, startPos, curPos, Q[targetKey].pareto, posReward, steps,
-                         checkRewardInGrid(Q[targetKey].pareto, posReward), 0])
+                    # log([trailCount, finalStateCount, startPos, curPos, Q[targetKey].pareto, posReward, steps,
+                    #      checkRewardInGrid(Q[targetKey].pareto, posReward), 0], calc_position_hyper_volume(curPos))
                     break
 
             print("###From Pos:", curPos, "\t take action:", targetAction, "\ttarget:", target)
@@ -920,10 +945,10 @@ def runTrace(positoin, trailCount, finalStateCount):
 
 
 
-def isLogConditionMeet(finalStateCount):
-    return (finalStateCount % runSettings['resultInterval'] == 0) \
+def isLogConditionMeet(finalStateCount, turns):
+    return (turns <= 1 ) and ( (finalStateCount % runSettings['resultInterval'] == 0) \
            or (runSettings['logLowerFinalState'] and ((finalStateCount < 20 and finalStateCount % 2 == 0) \
-                                                      or (finalStateCount < 100 and finalStateCount % 10 == 0)))
+                                                      or (finalStateCount < 100 and finalStateCount % 10 == 0))) )
 
 
 def initializeLogger():
@@ -933,11 +958,17 @@ def initializeLogger():
     fileName = 'qlMaze.data.{0}.csv'.format(datetime.datetime.today().strftime('%Y%m%d-%H%M%S'))
     # print(fileName)
     FORMAT = '%(message)s'
-    logging.basicConfig(format=FORMAT,
-                        handlers=[
-                            logging.FileHandler("{0}/{1}".format(runSettings['logFolder'], fileName)),
-                            logging.StreamHandler()],
+    # logging.basicConfig(format=FORMAT,
+    #                     handlers=[
+    #                         logging.FileHandler("{0}/{1}".format(runSettings['logFolder'], fileName)),
+    #                         logging.StreamHandler()],
+    #                     level=logging.DEBUG)
+
+    logging.basicConfig(format= FORMAT, #'%(asctime)s %(message)s',
+                        datefmt='%m/%d/%Y %I:%M:%S %p',
+                        filename="{0}/{1}".format(runSettings['logFolder'], fileName),
                         level=logging.DEBUG)
+    #logging.debug("This is a debug message")
 
 
 def log(msg):
@@ -950,16 +981,56 @@ def initialize():
     global runSettings
     runSettings = {  # 'trainingCount': 3500,
         "totalTrailCount": 1,
-        "finalStateUpperBound": 200,
+        "finalStateUpperBound": 3200,
         "resultInterval": 50,
-        "logLowerFinalState": False,
+        "logLowerFinalState": True,
         "logFolder": "./data/log/"
     }
+    initializeQ()
     initializeLogger()
     # file header
     log(['TrailNumber', 'Timestamp', 'OpenState', 'FinalState', 'RewardPostions', 'FinalStateReward', 'steps',
-         'Matched', 'MatchedFinal', 'path'])
+         'Matched', 'MatchedFinal', 'hyper', 'path'])
 
+def initializeQ():
+    for pos in OpenPos:
+        for action in NUM_ACTIONS:
+            key = (pos, action)
+            if key not in Q:
+                (ri, qi, ni) = getInitialValuesByPosition(pos)
+                Q[key] = QAction(ri, qi, action)
+
+def calc_position_hyper_volume(curPos):
+    tmp_paretos = []
+    # key = (curPos, NUM_ACTIONS.ACTION_NORTH)
+    # if key not in Q:
+    #     Q[key] = QAction(R_INIT, Q_INIT, NUM_ACTIONS.ACTION_NORTH)
+    # paretos.extend(Q[key].pareto)
+    # key = (curPos, NUM_ACTIONS.ACTION_EAST)
+    # paretos.extend(Q[key].pareto)
+    # key = (curPos, NUM_ACTIONS.ACTION_SOUTH)
+    # paretos.extend(Q[key].pareto)
+    # key = (curPos, NUM_ACTIONS.ACTION_WEST)
+    # paretos.extend(Q[key].pareto)
+    for action in NUM_ACTIONS:
+        key = (curPos, action)
+        tmp_paretos.extend(Q[key].pareto)
+    paretos = paretoArray(tmp_paretos)
+    pareto_sorted = sorted(paretos, key=lambda x: x[0], reverse=False)
+    return calc_hyper_volume(pareto_sorted, REF_POINT)
+
+
+
+
+def calc_hyper_volume(paretos, ref_point):
+    sum = 0
+    for idx, item in enumerate(paretos):
+        if idx == len(paretos) - 1:
+            sum += mpmath.fabs(paretos[idx][0] - ref_point[0]) * mpmath.fabs(paretos[idx][1] - ref_point[1])
+        else:
+            sum += mpmath.fabs(paretos[idx][0] - paretos[idx + 1][0] ) * mpmath.fabs(paretos[idx][0] - ref_point[1])
+
+    return sum
 
 def run():
     ##initialize settings
@@ -973,3 +1044,4 @@ def run():
 
 
 run()
+
