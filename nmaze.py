@@ -454,9 +454,9 @@ def updateQ(reward, curPos):
 
             # get pareto of current state
             # assign to triangle
-            if key not in Q:
-                (ri, qi, ni) = getInitialValuesByPosition(prevState)
-                Q[key] = QAction(ri, qi, ni)
+                    # if key not in Q:
+                    #     (ri, qi, ni) = getInitialValuesByPosition(prevState)
+                    #     Q[key] = QAction(ri, qi, ni)
 
             currParento.extend(Q[key].pareto)
             Q[key].pareto = paretoQ(curPos, currParento)
@@ -469,10 +469,10 @@ def updateQ(reward, curPos):
         # in final state
         # R:calculate R for previous state
         # Q[key].R = prevReward
-        if not key in Q:
-            print("***********key not in Q:", key)
-            (ri, qi) = getInitialValuesByPosition(prevState)
-            Q[key] = QAction(ri, qi, key)
+        # if not key in Q:
+        #     print("***********key not in Q:", key)
+        #     (ri, qi) = getInitialValuesByPosition(prevState)
+        #     Q[key] = QAction(ri, qi, key)
 
         Q[key].N += 1
         Q[key].R = Q[key].R + (reward - Q[key].R) / Q[key].N
@@ -634,9 +634,9 @@ def Resetinturn(curPos):
         currKey = (curPos, action)
         temppareto = []
         print("Cur Pos", currKey)
-        if currKey not in Q:
-            (ri, qi, ni) = getInitialValuesByPosition(curPos)
-            Q[currKey] = QAction(ri, qi, action)
+                # if currKey not in Q:
+                #     (ri, qi, ni) = getInitialValuesByPosition(curPos)
+                #     Q[currKey] = QAction(ri, qi, action)
         for p in Q[currKey].pareto:  #assign by value but not reference
             p = Q[currKey].R + GAMMA * p  # todo: change key
             temppareto.append(p)
@@ -922,7 +922,7 @@ def runTrace(position, trailCount, finalStateCount, hyperVol):
                     if not key in Q:
                         Q[key] = QAction(R_INIT, Q_INIT, action)
                     act, paretos = getDirectionPareto(curPos, action)
-                    print("Action:", act, "key:", key, "paretos:", paretos)
+                    #print("Action:", act, "key:", key, "paretos:", paretos)
                     ap.append((paretos, Q[key].R, action))
                 apdata = flatDirectionPareto(ap)
                 diff, targetAction, target = getMinP(apdata, target)
@@ -980,8 +980,8 @@ def log(msg):
 def initialize():
     global runSettings
     runSettings = {  # 'trainingCount': 3500,
-        "totalTrailCount": 1,
-        "finalStateUpperBound": 3200,
+        "totalTrailCount": 30,
+        "finalStateUpperBound": 3500,
         "resultInterval": 50,
         "logLowerFinalState": True,
         "logFolder": "./data/log/"
