@@ -907,6 +907,7 @@ def runTrace(position, trailCount, finalStateCount, hyperVol):
                     log([trailCount, finalStateCount, startPos, curPos, posReward
                             , steps, hyperVol
                             , checkRewardInGrid(Q[targetKey].pareto, posReward)
+                            , checkRewardInGrid(Q[targetKey].pareto, FINAL_POSITION_REWARD)
                             , Q[targetKey].pareto
                             , path])
 
@@ -994,8 +995,8 @@ def initialize():
     initializeQ()
     initializeLogger()
     # file header
-    log(['TrailNumber', 'Timestamp', 'OpenState', 'FinalState', 'RewardPostions', 'FinalStateReward', 'steps',
-         'Matched', 'MatchedFinal', 'hyper', 'path'])
+    log(['TrailNumber', 'Timestamp', 'OpenState', 'FinalState', 'RewardPostions', 'FinalStateReward', 'steps', 'hypervol',
+         'Matched', 'MatchedFinal', 'paretos', 'path'])
 
 def initializeQ():
     for pos in OpenPos:
