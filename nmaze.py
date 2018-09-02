@@ -725,6 +725,7 @@ def testingInTurn():
 
             for items in paretoOfFirstPos:
                 steps = 0
+                path = []
                 logged = True
                 ##reset to state(0,0)
                 curPos = (0, 0)
@@ -745,6 +746,7 @@ def testingInTurn():
                     # use the found action above where move curPos forward or in non-finalState to take action
                     takeAction(targetAction)
                     steps += 1
+                    path.append(curPos)
                     if curPos in RewardPos:
                         finalStatePosCount += 1
 
@@ -869,12 +871,14 @@ def runTrace(position, trailCount, finalStateCount, hyperVol):
 
     for items in paretoOfFirstPos:
         steps = 0
+        path = []
         logged = True
         ##reset to state(0,0)
         # curPos = (0, 0)
         curPos = position
 
         startPos = curPos
+        path.append(curPos)
 
         targetTuple = items
         print("find target:", i, ":", targetTuple)
@@ -889,6 +893,7 @@ def runTrace(position, trailCount, finalStateCount, hyperVol):
             # use the found action above where move curPos forward or in non-finalState to take action
             takeAction(targetAction)
             steps += 1
+            path.append(curPos)
             # print(trailCount, finalStateCount, startPos, curPos)
             if curPos in RewardPos:
                 finalStatePosCount += 1
@@ -897,13 +902,13 @@ def runTrace(position, trailCount, finalStateCount, hyperVol):
                     logged = False
 
                 ##add trace logging
-                ##['TrailNumber', 'Timestamp', 'OpenState', 'FinalState', 'RewardPostions','FinalStateReward', 'steps', 'path'])
                 if not logged:
                     posReward = getFinalStateReward(curPos)
-                    log([trailCount, finalStateCount, startPos, curPos, posReward, steps
-                            , hyperVol
+                    log([trailCount, finalStateCount, startPos, curPos, posReward
+                            , steps, hyperVol
                             , checkRewardInGrid(Q[targetKey].pareto, posReward)
-                            , Q[targetKey].pareto])
+                            , Q[targetKey].pareto
+                            , path])
 
                 print("-----------Reach Reward Pos: ", curPos, "\twith action count:", actions, "\tQ:",
                       Q[targetKey].pareto, "\tR", Q[targetKey].R, "\tfinalStateCount:", finalStateCount)
