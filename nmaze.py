@@ -422,22 +422,23 @@ def updateQ(reward, curPos):
             #         (ri, qi) = getInitialValuesByPosition(curPos)
             #         Q[currKey] = QAction(ri, qi, action)
 
-            currParento = []
+            currPareto = []
 
             # calc p for each direction of curr Pos
+            #TODO: check whether add pareto at this open state %%%%%%%%%%%%
             for action in NUM_ACTIONS:
                 currKey = (curPos, action)
                 # print ("before", Q[currKey].pareto)
                 for p in Q[currKey].pareto:  # value reference, won't affect original value after assigned
                     p = Q[currKey].R + GAMMA * p  # todo: change key
-                    currParento.append(p)
+                    currPareto.append(p)
                 # print ("after", Q[currKey].pareto)
             # get pareto of current state
             # assign to triangle
             if not key in Q:  # why if not currKey?????
                 (ri, qi, ni) = getInitialValuesByPosition(prevState)
                 Q[key] = QAction(ri, qi, prevAction)
-            currParentoafter = paretoQ(curPos, currParento)
+            currParentoafter = paretoQ(curPos, currPareto)
             ################################################!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
             currParentoafter = tickoff00(currParentoafter)  ###########################################################
             ####################################################################################################
@@ -450,7 +451,7 @@ def updateQ(reward, curPos):
         if (x, y) in RewardPos:
             # if(curPos==(3,2)):
             #   print("3,2")
-            currParento = getPareto(curPos)
+            currPareto = getPareto(curPos)
 
             # get pareto of current state
             # assign to triangle
@@ -458,8 +459,8 @@ def updateQ(reward, curPos):
                     #     (ri, qi, ni) = getInitialValuesByPosition(prevState)
                     #     Q[key] = QAction(ri, qi, ni)
 
-            currParento.extend(Q[key].pareto)
-            Q[key].pareto = paretoQ(curPos, currParento)
+            currPareto.extend(Q[key].pareto)
+            Q[key].pareto = paretoQ(curPos, currPareto)
             # to next position
 
             prevState = None
@@ -529,8 +530,8 @@ def training1():
     while trailCount < runSettings['totalTrailCount']:
         ### finalStateUpperBound
         finalStateCount = 0
+        initializeQ()
         while FinalCount <= runSettings['finalStateUpperBound']:
-
             # if curPos ==(9,9):
             #     print (actions)
             # if FinalCount == 0:
@@ -633,7 +634,7 @@ def Resetinturn(curPos):
     for action in NUM_ACTIONS:
         currKey = (curPos, action)
         temppareto = []
-        print("Cur Pos", currKey)
+        #print("Cur Pos", currKey)
                 # if currKey not in Q:
                 #     (ri, qi, ni) = getInitialValuesByPosition(curPos)
                 #     Q[currKey] = QAction(ri, qi, action)
@@ -643,11 +644,11 @@ def Resetinturn(curPos):
         currentV.append((temppareto, action))
     # pareto Q
     print("currentV", currentV)
-    sortedParento = paretoQ(curPos, currentV)  # currentParento = ([[0,1],[1,0]], action)
-    length = len(sortedParento)
-    print("sortedParento", sortedParento)
+    sortedPareto = paretoQ(curPos, currentV)  # currentParento = ([[0,1],[1,0]], action)
+    length = len(sortedPareto)
+    print("sortedParento", sortedPareto)
 
-    return sortedParento
+    return sortedPareto
 
     # select Q
     # targetTuple = sortedParento
@@ -671,131 +672,6 @@ def getMinP(paretos, target):
     return min(calcP, key=lambda item: item[0])
 
 
-def testing1():
-    global curPos, prevAction, prevState, actions
-    FinalCount = 0
-    curPos = (0, 0)
-
-    target, targetAction = Reset(curPos)
-    print("target:", target)
-    takeAction(targetAction)
-
-    # loop
-    while FinalCount < 1200:
-        if curPos in RewardPos:
-            FinalCount += 1
-            print("-----------Reach Reward Pos: ", curPos, "\twith action count:", actions, "\tFinalCount:", FinalCount)
-            curPos = (0, 0)
-            actions = 0
-            target, targetAction = Reset(curPos)
-            print("target:", target)
-
-        else:
-            ap = []
-            for action in NUM_ACTIONS:
-                key = (curPos, action)
-                a, paretos = getDirectionPareto(curPos, action)
-                # print("Action:", key, "\tparetos:", paretos)
-                ap.append((paretos, Q[key].R, action))
-            apdata = flatDirectionPareto(ap)
-            diff, targetAction, target = getMinP(apdata, target)
-            # print("Found! diff:",diff, "\tTarget Action:", targetAction, "\tnew target value:", target )
-
-        #print("###From Pos:", curPos, "\t take action:", targetAction, "\ttarget:", target)
-        takeAction(targetAction)  # use the found action above where move curPos forward
-
-    # print("Key:", key)
-
-
-def testingInTurn():
-    global curPos, prevAction, prevState, actions, FinalCount
-    trailCount = 0
-
-    paretoOfFirstPos = Resetinturn((0, 0))
-    print("pareto in 0,0:", paretoOfFirstPos, "\n number:", len(paretoOfFirstPos))
-
-    ### trail
-    while trailCount < runSettings['totalTrailCount']:
-        ### finalStateUpperBound
-        finalStateCount = 0
-        while finalStateCount <= runSettings['finalStateUpperBound']:
-            ### for each finalState
-            i = 0
-            finalStatePosCount = 0
-
-            for items in paretoOfFirstPos:
-                steps = 0
-                path = []
-                logged = True
-                ##reset to state(0,0)
-                curPos = (0, 0)
-
-                startPos = curPos
-
-                targetTuple = items
-                print("find target:", i, ":", targetTuple)
-                targetAction = targetTuple[1]
-                # print("action:",targetAction)
-                targetKey = (curPos, targetAction)
-                calcTarget = targetTuple[0]
-                target = getOrignalPareto(calcTarget, Q[targetKey].pareto, Q[targetKey].R)
-
-                #
-                # select Q
-                while curPos not in RewardPos:
-                    # use the found action above where move curPos forward or in non-finalState to take action
-                    takeAction(targetAction)
-                    steps += 1
-                    path.append(curPos)
-                    if curPos in RewardPos:
-                        finalStatePosCount += 1
-
-                        if isLogConditionMeet(mpmath.ceil(finalStateCount + finalStatePosCount / len(paretoOfFirstPos))):
-                            logged = False
-
-                        ##add trace logging
-                        ##['TrailNumber', 'Timestamp', 'OpenState', 'FinalState', 'RewardPostions','FinalStateReward', 'steps', 'path'])
-                        if not logged:
-                            posReward = getFinalStateReward(curPos)
-                            log([trailCount, finalStateCount, startPos, curPos, posReward, steps
-                                    , calc_position_hyper_volume(curPos)
-                                    , checkRewardInGrid(Q[targetKey].pareto, posReward)
-                                    , Q[targetKey].pareto])
-
-                        print("-----------Reach Reward Pos: ", curPos, "\twith action count:", actions, "\tQ:",
-                              Q[targetKey].pareto, "\tR", Q[targetKey].R, "\tfinalStateCount:", finalStateCount)
-
-                        if finalStatePosCount == len(paretoOfFirstPos):
-                            finalStateCount += 1
-                        curPos = (0, 0)
-                        actions = 0
-                        steps = 0
-                        # target, targetAction, length = Resetinturn(curPos,i)
-                        i += 1
-                        break  ##get next item in paretoinfirstPOS
-                    else:
-                        ap = []
-                        for action in NUM_ACTIONS:
-                            key = (curPos, action)
-                            a, paretos = getDirectionPareto(curPos, action)
-                            # print("Action:", key, "\tparetos:", paretos)
-                            ap.append((paretos, Q[key].R, action))
-                        apdata = flatDirectionPareto(ap)
-                        diff, targetAction, target = getMinP(apdata, target)
-                        # print("Found! diff:",diff, "\tTarget Action:", targetAction, "\tnew target value:", target )
-                        if actions > 30:
-                            print("loooooooooooooop,oooooops")
-                            actions = 0
-                            break
-                        if not isLogConditionMeet(mpmath.ceil(finalStateCount + finalStatePosCount / len(paretoOfFirstPos))):
-                            logged = True
-
-                    print("###From Pos:", curPos, "\t take action:", targetAction, "\ttarget:", target)
-                    # takeAction(targetAction)#use the found action above where move curPos forward
-                    # steps += 1
-        trailCount += 1
-
-    print('################## end of experiment ################')
 
 
 def getAction(curPos):
@@ -906,8 +782,8 @@ def runTrace(position, trailCount, finalStateCount, hyperVol):
                     posReward = getFinalStateReward(curPos)
                     log([trailCount, finalStateCount, startPos, curPos, posReward
                             , steps, hyperVol
-                            , checkRewardInGrid(Q[targetKey].pareto, posReward)
-                            , checkRewardInGrid(Q[targetKey].pareto, FINAL_POSITION_REWARD)
+                            , 1
+                            , targetKey
                             , Q[targetKey].pareto
                             , path])
 
@@ -939,13 +815,17 @@ def runTrace(position, trailCount, finalStateCount, hyperVol):
 
                 if steps > 30:
                     print("loooooooooooooop,oooooops")
-                    steps = 0
                     posReward = 0  ### failed to reach to final state, set 0 as fake reward
-                    # log([trailCount, finalStateCount, startPos, curPos, Q[targetKey].pareto, posReward, steps,
-                    #      checkRewardInGrid(Q[targetKey].pareto, posReward), 0], calc_position_hyper_volume(curPos))
+                    log([trailCount, finalStateCount, startPos, curPos, posReward
+                            , steps, hyperVol
+                            , 0
+                            , targetKey
+                            , Q[targetKey].pareto
+                            , path])
+                    steps = 0
                     break
 
-            print("###From Pos:", curPos, "\t take action:", targetAction, "\ttarget:", target)
+            #print("###From Pos:", curPos, "\t take action:", targetAction, "\ttarget:", target)
             # takeAction(targetAction)#use the found action above where move curPos forward
             # steps += 1
 
@@ -953,7 +833,7 @@ def runTrace(position, trailCount, finalStateCount, hyperVol):
 
 def isLogConditionMeet(finalStateCount, turns):
     return (turns <= 1 ) and ( (finalStateCount % runSettings['resultInterval'] == 0) \
-           or (runSettings['logLowerFinalState'] and ((finalStateCount < 20 and finalStateCount % 2 == 0) \
+           or (runSettings['logLowerFinalState'] and ((finalStateCount < 20 and finalStateCount % 1 == 0) \
                                                       or (finalStateCount < 100 and finalStateCount % 10 == 0))) )
 
 
@@ -992,19 +872,17 @@ def initialize():
         "logLowerFinalState": True,
         "logFolder": "./data/log/"
     }
-    initializeQ()
     initializeLogger()
     # file header
-    log(['TrailNumber', 'Timestamp', 'OpenState', 'FinalState', 'RewardPostions', 'FinalStateReward', 'steps', 'hypervol',
-         'Matched', 'MatchedFinal', 'paretos', 'path'])
+    log(['TrailNumber', 'Timestamp', 'OpenState', 'FinalState', 'RewardPostions', 'steps', 'hypervol',
+         'Matched', 'paretos', 'path'])
 
 def initializeQ():
     for pos in OpenPos:
         for action in NUM_ACTIONS:
             key = (pos, action)
-            if key not in Q:
-                (ri, qi, ni) = getInitialValuesByPosition(pos)
-                Q[key] = QAction(ri, qi, action)
+            (ri, qi, ni) = getInitialValuesByPosition(pos)
+            Q[key] = QAction(ri, qi, action)
 
 def calc_position_hyper_volume(curPos):
     tmp_paretos = []
