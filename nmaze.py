@@ -11,21 +11,6 @@ import mpmath
 import datetime
 
 
-def enum(*args):
-    g = globals()
-    i = 0
-    for arg in args:
-        g[arg] = i
-        i += 1
-    return i
-
-
-# Macros
-# NUM_ACTIONS = Enum('ACTION_NORTH',
-#                    'ACTION_EAST',
-#                    'ACTION_SOUTH',
-#                    'ACTION_WEST',)
-
 class NUM_ACTIONS(Enum):
     ACTION_NORTH = 1
     ACTION_EAST = 2,
@@ -73,7 +58,7 @@ Config = {}
 
 GRID_x = 21
 GRID_y = 14
-Q_INIT = np.array([0, 0])
+Q_INIT = np.array([-10, -10])
 R_INIT = np.array([0, 0])
 N_INIT = 0
 FINAL_POSITION_REWARD = 1750
@@ -86,7 +71,9 @@ FinalCount = 0
 
 # globals
 grid = []
-curPos = (0, 0)
+startPos = (1, 1)
+
+curPos = startPos
 actions = 0
 
 # remembered information
@@ -132,7 +119,7 @@ RewardGrid =[[5,5,5,5,5,5,5,5,5,5,5,5,5,5,5],
 [5,5,5,5,5,5,5,5,5,5,5,5,0,0,5],
 [5,5,5,5,5,5,5,5,5,5,5,5,5,5,5]]
 
-OpenPos = (
+OpenPos = [
            (1, 1), (1, 2), (1, 3), (1, 4),
            (2, 1), (2, 3), (2, 4), (2, 5),
            (3, 1), (3, 3), (3, 5),
@@ -151,10 +138,14 @@ OpenPos = (
            (18, 11), (18, 13),
            (19, 13), (20, 13)
 
-           )
+           ]
 
 RewardPos = [(4, 1), (1, 5), (11, 5), (8, 9), (18, 9), (15, 13)]
 
+
+
+GRID_x = len(RewardGrid[0])
+GRID_y = len(RewardGrid)
 
 # print grid
 def printGrid(Grid):
@@ -174,18 +165,19 @@ def takeAction(action):
     prevAction = action
 
     reward = np.array([-1, 0])
+
     try:
         if action == NUM_ACTIONS.ACTION_EAST:
-            if y < GRID_y:
+            if (x, y + 1) in OpenPos or (x, y + 1) in RewardPos:
                 y += 1
         elif action == NUM_ACTIONS.ACTION_NORTH:
-            if x > 0:
+            if (x -1, y) in OpenPos or (x -1, y) in RewardPos:
                 x -= 1
         elif action == NUM_ACTIONS.ACTION_WEST:
-            if y > 0 and curPos != (5, 6) and curPos != (6, 6) and curPos != (8, 8):
+            if (x, y - 1) in OpenPos or (x, y - 1) in RewardPos:
                 y -= 1
         elif action == NUM_ACTIONS.ACTION_SOUTH:
-            if x < GRID_x:
+            if (x + 1, y) in OpenPos or (x + 1, y) in RewardPos:
                 x += 1
         # if 到边界，there is no reward??????!!!!!
         curPos = (x, y)
@@ -525,7 +517,7 @@ def training1():
     # total new start
     # curPos = random.choice(GridState)
     # action = random.choice(list(NUM_ACTIONS)) #reward,state,avgreward
-    curPos = (0, 0)
+    curPos = startPos
     ### trail
     while trailCount < runSettings['totalTrailCount']:
         ### finalStateUpperBound
@@ -792,7 +784,7 @@ def runTrace(position, trailCount, finalStateCount, hyperVol):
 
                 # if finalStatePosCount == len(paretoOfFirstPos):
                 #     finalStateCount += 1
-                curPos = (0, 0)
+                curPos = startPos
                 steps = 0
                 # target, targetAction, length = Resetinturn(curPos,i)
                 i += 1
@@ -829,11 +821,10 @@ def runTrace(position, trailCount, finalStateCount, hyperVol):
             # takeAction(targetAction)#use the found action above where move curPos forward
             # steps += 1
 
-
-
 def isLogConditionMeet(finalStateCount, turns):
     return (turns <= 1 ) and ( (finalStateCount % runSettings['resultInterval'] == 0) \
-           or (runSettings['logLowerFinalState'] and ((finalStateCount < 20 and finalStateCount % 1 == 0) \
+           or (runSettings['logLowerFinalState'] and ((finalStateCount < 5)
+                                                      or (finalStateCount < 20 and finalStateCount % 2 == 0) \
                                                       or (finalStateCount < 100 and finalStateCount % 10 == 0))) )
 
 
@@ -841,7 +832,7 @@ def initializeLogger():
     logFolder = runSettings['logFolder']
     if not os.path.isdir(logFolder):
         os.makedirs(logFolder)
-    fileName = 'qlMaze.data.{0}.csv'.format(datetime.datetime.today().strftime('%Y%m%d-%H%M%S'))
+    fileName = os.path.basename(__file__) + 'qlMaze.data.{0}.csv'.format(datetime.datetime.today().strftime('%Y%m%d-%H%M%S'))
     # print(fileName)
     FORMAT = '%(message)s'
     # logging.basicConfig(format=FORMAT,
@@ -866,16 +857,16 @@ def log(msg):
 def initialize():
     global runSettings
     runSettings = {  # 'trainingCount': 3500,
-        "totalTrailCount": 30,
-        "finalStateUpperBound": 3500,
-        "resultInterval": 50,
+        "totalTrailCount": 10,
+        "finalStateUpperBound": 500,
+        "resultInterval": 20,
         "logLowerFinalState": True,
         "logFolder": "./data/log/"
     }
     initializeLogger()
     # file header
-    log(['TrailNumber', 'Timestamp', 'OpenState', 'FinalState', 'RewardPostions', 'steps', 'hypervol',
-         'Matched', 'paretos', 'path'])
+    log(['TrailNumber', 'Timestamp', 'OpenState', 'FinalState', 'RewardPostions', 'steps', 'hyperVolumn',
+         'Matched', 'targetKey', 'paretos', 'path'])
 
 def initializeQ():
     for pos in OpenPos:
@@ -925,6 +916,7 @@ def run():
     #testingInTurn()
     # notrace()
     # cleanUp()
+    print('------------DONE----------------')
 
 
 run()
