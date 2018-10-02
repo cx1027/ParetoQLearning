@@ -9,6 +9,7 @@ from enum import Enum
 import os, csv, logging
 import mpmath
 import datetime
+import json
 
 
 class NUM_ACTIONS(Enum):
@@ -58,11 +59,11 @@ Config = {}
 
 GRID_x = 21
 GRID_y = 14
-Q_INIT = np.array([-10, -10])
+Q_INIT = np.array([10, 10])
 R_INIT = np.array([0, 0])
 N_INIT = 0
 FINAL_POSITION_REWARD = 1750
-REF_POINT = np.array([-10, -10])
+REF_POINT = np.array([-30, -30])
 
 # learning parameters
 GAMMA = 1
@@ -99,28 +100,28 @@ prevReward = None
 RewardGrid =[[5,5,5,5,5,5,5,5,5,5,5,5,5,5,5],
 [5,0,0,0,0,30,5,5,5,5,5,5,5,5,5],
 [5,0,5,0,0,0,5,5,5,5,5,5,5,5,5],
-[5,0,5,0,0,0,5,5,5,5,5,5,5,5,5],
-[5,20,5,0,0,0,5,5,5,5,5,5,5,5,5],
-[5,5,5,5,0,0,5,5,5,5,5,5,5,5,5],
-[5,5,5,5,0,0,5,5,5,5,5,5,5,5,5],
+[5,0,5,0,5,0,5,5,5,5,5,5,5,5,5],
+[5,20,5,0,5,0,5,5,5,5,5,5,5,5,5],
+[5,5,5,5,5,0,5,5,5,5,5,5,5,5,5],
+[5,5,5,5,5,0,5,5,5,5,5,5,5,5,5],
 [5,5,5,5,5,0,5,5,5,5,5,5,5,5,5],
 [5,5,5,5,5,0,0,0,0,30,5,5,5,5,5],
 [5,5,5,5,5,0,5,0,0,0,5,5,5,5,5],
-[5,5,5,5,5,0,5,0,0,0,5,5,5,5,5],
-[5,5,5,5,5,20,5,0,0,0,5,5,5,5,5],
-[5,5,5,5,5,5,5,5,0,0,5,5,5,5,5],
-[5,5,5,5,5,5,5,5,0,0,5,5,5,5,5],
+[5,5,5,5,5,0,5,0,5,0,5,5,5,5,5],
+[5,5,5,5,5,20,5,0,5,0,5,5,5,5,5],
+[5,5,5,5,5,5,5,5,5,0,5,5,5,5,5],
+[5,5,5,5,5,5,5,5,5,0,5,5,5,5,5],
 [5,5,5,5,5,5,5,5,5,0,5,5,5,5,5],
 [5,5,5,5,5,5,5,5,5,0,0,0,0,30,5],
 [5,5,5,5,5,5,5,5,5,0,5,0,0,0,5],
-[5,5,5,5,5,5,5,5,5,0,5,0,0,0,5],
-[5,5,5,5,5,5,5,5,5,20,5,0,0,0,5],
-[5,5,5,5,5,5,5,5,5,5,5,5,0,0,5],
-[5,5,5,5,5,5,5,5,5,5,5,5,0,0,5],
+[5,5,5,5,5,5,5,5,5,0,5,0,5,0,5],
+[5,5,5,5,5,5,5,5,5,20,5,0,5,0,5],
+[5,5,5,5,5,5,5,5,5,5,5,5,5,0,5],
+[5,5,5,5,5,5,5,5,5,5,5,5,5,0,5],
 [5,5,5,5,5,5,5,5,5,5,5,5,5,5,5]]
 
-OpenPos = [
-           (1, 1), (1, 2), (1, 3), (1, 4),
+
+OpenPos = [(1, 1), (1, 2), (1, 3), (1, 4),
            (2, 1), (2, 3), (2, 4), (2, 5),
            (3, 1), (3, 3), (3, 5),
            (4, 3), (4, 5),
@@ -128,7 +129,7 @@ OpenPos = [
 
            (8, 5), (8, 6), (8, 7), (8, 8),
            (9, 5), (9, 7), (9, 8), (9, 9),
-           (10, 5), (10, 7), (10, 8),
+           (10, 5), (10, 7), (10, 9),
            (11, 7), (11, 9),
            (12, 9), (13, 9),(14, 9),
 
@@ -137,10 +138,12 @@ OpenPos = [
            (17, 9), (17, 11), (17, 13),
            (18, 11), (18, 13),
            (19, 13), (20, 13)
-
            ]
 
 RewardPos = [(4, 1), (1, 5), (11, 5), (8, 9), (18, 9), (15, 13)]
+
+
+
 
 
 
@@ -167,23 +170,23 @@ def takeAction(action):
     reward = np.array([-1, 0])
 
     try:
-        if action == NUM_ACTIONS.ACTION_EAST:
+        if action == NUM_ACTIONS.ACTION_SOUTH:
             if (x, y + 1) in OpenPos or (x, y + 1) in RewardPos:
                 y += 1
-        elif action == NUM_ACTIONS.ACTION_NORTH:
+        elif action == NUM_ACTIONS.ACTION_WEST:
             if (x -1, y) in OpenPos or (x -1, y) in RewardPos:
                 x -= 1
-        elif action == NUM_ACTIONS.ACTION_WEST:
+        elif action == NUM_ACTIONS.ACTION_NORTH:
             if (x, y - 1) in OpenPos or (x, y - 1) in RewardPos:
                 y -= 1
-        elif action == NUM_ACTIONS.ACTION_SOUTH:
+        elif action == NUM_ACTIONS.ACTION_EAST:
             if (x + 1, y) in OpenPos or (x + 1, y) in RewardPos:
                 x += 1
         # if 到边界，there is no reward??????!!!!!
         curPos = (x, y)
         # if curPos == (0, 0) and trashes == 0 and reward != REWARD_PICKUP:
         if curPos in RewardPos:
-            reward = np.array([-1, RewardGrid[x][y]])
+            reward = np.array([-1, getRewardInRewardGrid((x, y))])
 
         # Set N:
         actions += 1
@@ -196,7 +199,7 @@ def takeAction(action):
 def getInitialValuesByPosition(curPos):
     x, y = curPos
     if curPos in RewardPos:
-        return (np.array([-1, RewardGrid[x][y]]), N_INIT)
+        return (np.array([-1, getRewardInRewardGrid((x,y))]), N_INIT)
     else:
         return (R_INIT, Q_INIT, N_INIT)
 
@@ -321,7 +324,7 @@ def getPareto(curPos):
                 pareto.extend(Q[key].pareto)
     else:
         x, y = curPos
-        pareto.append(np.array([-1, RewardGrid[x][y]]))
+        pareto.append(np.array([-1, getRewardInRewardGrid(curPos) ]))
     return pareto
 
 
@@ -338,7 +341,7 @@ def getDirectionPareto(curPos, action):
 
     else:
         x, y = curPos
-        pareto.append(np.array([-1, RewardGrid[x][y]]))
+        pareto.append(np.array([-1, getRewardInRewardGrid(curPos)]))
     return (action, pareto)
 
 
@@ -697,8 +700,15 @@ def getAction(curPos):
 def getFinalStateReward(finalState):
     if finalState not in RewardPos:
         raise Exception('##This is not a valid final state!')
-    return RewardGrid[finalState[0]][finalState[1]]
+    return getRewardInRewardGrid((finalState[0],finalState[1]))
 
+def getRewardInRewardGrid(pos):
+    reward = -1
+    for p in RewardGrid:
+        if p[0] == pos:
+            return p[1]
+    if reward == -1:
+        raise Exception('##This is not a valid final state!')
 
 def checkRewardInGrid(paretos, reward):
     ret = list(filter(lambda x: x[1] == reward, paretos))
@@ -855,10 +865,10 @@ def log(msg):
 
 
 def initialize():
-    global runSettings
+    global runSettings, OpenPos, RewardPos, RewardGrid
     runSettings = {  # 'trainingCount': 3500,
-        "totalTrailCount": 10,
-        "finalStateUpperBound": 500,
+        "totalTrailCount": 1,
+        "finalStateUpperBound": 1500,
         "resultInterval": 20,
         "logLowerFinalState": True,
         "logFolder": "./data/log/"
@@ -867,6 +877,34 @@ def initialize():
     # file header
     log(['TrailNumber', 'Timestamp', 'OpenState', 'FinalState', 'RewardPostions', 'steps', 'hyperVolumn',
          'Matched', 'targetKey', 'paretos', 'path'])
+
+    with open("data/mmaze.txt") as file:
+        OpenPos = []
+        RewardPos = []
+        i = 0
+        for line in file:
+            j = 0
+            for ch in line:
+                if ch in ['O']:
+                    OpenPos.append((j,i))
+                if ch in ['F']:
+                    RewardPos.append((j,i))
+                j = j + 1
+
+            i = i + 1
+
+    with open('data/mmaze.json') as f:
+        RewardGrid = []
+        data = json.load(f)
+        for rew_set in data:
+            for rew in rew_set['rewards']:
+                loc_temp = rew['location'].split('|')
+                rew_temp = rew['reward'].split('|')
+                x = int(loc_temp[0])
+                y = int(loc_temp[1])
+                reward = int(rew_temp[1])
+                RewardGrid.append(((x, y), reward))
+
 
 def initializeQ():
     for pos in OpenPos:
